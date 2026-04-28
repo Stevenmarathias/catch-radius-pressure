@@ -116,38 +116,6 @@ Receivers ranked by average CRP faced. These are the players quarterbacks throw 
 
 ---
 
-## Team Defense Rankings
-
-CRP also evaluates defenses: which units actually close on the ball when it matters?
-
-### Defenses by CRP generated per pass play
-
-![Team CRP Ranking](outputs/12_team_crp_ranking.png)
-
-The Jets, Dolphins, Commanders, Bengals, and Texans lead the league in raw CRP generated. Notably, NYJ pairs that pressure with the **second-lowest completion rate allowed (66.9%)** — a genuinely elite pass defense. Vikings, Raiders, and Broncos sit at the bottom: defenders rarely make it into the catch radius.
-
-### Defensive identity — pressure vs. completion allowed
-
-![Team Pressure Quadrant](outputs/13_team_pressure_quadrant.png)
-
-The bottom-right quadrant is where elite defenses live: high pressure generated, low completion rate allowed. NYJ, BAL, KC, NO, and CLE are the standouts. The top-right quadrant — high pressure but high completion rate — flags defenses that close on the ball but don't finish (MIA stands out here).
-
-### Defensive Rate Over Expected (DROE)
-
-![Team DROE](outputs/14_team_droe.png)
-
-DROE is to defenses what CROE is to receivers: **how much better than expected** is their completion rate allowed, given the level of CRP they generate? Top performers in 2023:
-
-| Rank | Team | DROE | Completion Allowed | Expected | Read |
-|------|------|------|--------------------|----------|------|
-| 1 | DAL | +5.0% | 65.7% | 70.8% | Elite finishing on contested plays |
-| 2 | CLE | +4.4% | 66.3% | 70.7% | Elite secondary play |
-| 3 | KC | +4.0% | 66.2% | 70.2% | Both pressure AND finishing |
-| 4 | LAR | +3.9% | 67.2% | 71.2% | Punches above their pressure rate |
-| 5 | PIT | +3.8% | 66.7% | 70.6% | T.J. Watt effect on the back end |
-
----
-
 ## Animated Play Examples
 
 ### High-pressure completion (CRP = 2.09, slant route, 3 defenders converging)
@@ -172,7 +140,6 @@ catch-radius-pressure/
 │   ├── data_loader.py       # Data utilities
 │   ├── visualizations.py    # Field plots, heatmaps, distributions
 │   ├── rankings.py          # Player rankings & CROE
-│   ├── team_defense.py      # Team defense rankings & DROE
 │   └── animation.py         # Animated play GIFs
 ├── notebooks/
 │   ├── crp_analysis.ipynb        # Full analysis walkthrough
@@ -183,8 +150,7 @@ catch-radius-pressure/
 │   ├── crp_all_weeks.csv    # 14,108 plays, CRP only
 │   ├── crp_merged.csv       # CRP + supplementary metadata
 │   ├── play_targets.csv     # Play → targeted receiver lookup
-│   ├── receiver_rankings.csv # Computed receiver rankings
-│   └── team_defense_rankings.csv # Team defense rankings
+│   └── receiver_rankings.csv # Computed rankings
 └── outputs/                 # All charts & animated GIFs
 ```
 
@@ -219,7 +185,6 @@ python scripts/compute_crp.py --data_dir /path/to/competition/data
 ```python
 from crp import compute_crp_for_play, compute_crp_dataset, load_week
 from crp.rankings import compute_player_rankings
-from crp.team_defense import compute_team_defense_rankings
 from crp.animation import animate_play
 
 # Single play
@@ -232,9 +197,6 @@ df_crp = compute_crp_dataset(df_in, df_out)
 # Player rankings
 rankings = compute_player_rankings(df_crp_merged, play_targets, min_targets=30)
 
-# Team defense rankings
-team_rankings = compute_team_defense_rankings(df_crp_merged, min_plays=100)
-
 # Animate a play
 animate_play(df_in, df_out, game_id=2023091010, play_id=3826,
              output_path="play.gif")
@@ -245,9 +207,9 @@ animate_play(df_in, df_out, game_id=2023091010, play_id=3826,
 ## Future Work
 
 - **Quarterback bravery index**: do QBs throw into pressure or take the safe option?
+- **Team-level coverage efficiency**: which defenses generate the most CRP per snap?
 - **Temporal CRP decomposition**: separate "tight at release" from "late-closing" pressure
-- **Coverage scheme deep-dive**: which specific man/zone variants generate pressure most efficiently?
-- **Red zone CRP**: does pressure inside the 20 behave differently than open-field pressure?
+- **Fantasy / DFS applications**: CRP-adjusted projections for receivers in upcoming matchups
 
 ---
 
