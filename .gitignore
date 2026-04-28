@@ -1,0 +1,17 @@
+# Competition data (large files — add manually or via git-lfs)
+data/114239_nfl_competition_files_published_analytics_final/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+.env
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
