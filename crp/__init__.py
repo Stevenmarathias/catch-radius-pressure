@@ -22,6 +22,12 @@ from .rankings import (
     plot_pressure_specialists,
     load_play_targets,
 )
+from .team_defense import (
+    compute_team_defense_rankings,
+    plot_team_crp_ranking,
+    plot_team_quadrant,
+    plot_team_droe,
+)
 from .animation import animate_play
 
 __all__ = [
@@ -39,5 +45,9 @@ __all__ = [
     "plot_top_receivers",
     "plot_pressure_specialists",
     "load_play_targets",
+    "compute_team_defense_rankings",
+    "plot_team_crp_ranking",
+    "plot_team_quadrant",
+    "plot_team_droe",
     "animate_play",
 ]
