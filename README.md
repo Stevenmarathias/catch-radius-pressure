@@ -1,15 +1,19 @@
 # Catch Radius Pressure (CRP)
 ### NFL Big Data Bowl 2026 — Analytics Track
 
-> **Quantifying defensive pressure at the catch point across 14,108 passing plays from the 2023 NFL season.**
+> **A new metric measuring defensive pressure at the catch point across 14,108 passing plays from the 2023 NFL season.**
+
+![High CRP Play Animation](outputs/10_animated_high_crp_play.gif)
+
+*A high-pressure play unfolding: ball in flight, defenders converging, CRP score updating frame-by-frame.*
 
 ---
 
 ## The Problem
 
-Traditional passing metrics — completion percentage, yards after catch, EPA — tell us *what happened*. They don't tell us *how hard it was*. A receiver making a catch while wide open is evaluated the same as one fighting through traffic with two defenders closing in.
+Traditional passing metrics — completion percentage, yards after catch, EPA — tell us *what happened*. They don't tell us *how hard it was*. A receiver catching a ball wide open is evaluated the same as one fighting through traffic with two defenders closing in.
 
-**Catch Radius Pressure (CRP)** fills this gap.
+**Catch Radius Pressure (CRP)** fills that gap.
 
 ---
 
@@ -28,9 +32,9 @@ $$\text{CRP} = \sum_{i \in D_R} \left(1 - \frac{d_i}{R}\right) \cdot (1 + v_i)$$
 | $v_i$ | Velocity of defender $i$ toward the ball (yards/frame), floored at 0 |
 | $R$ | Catch radius — default **3.0 yards** |
 
-**Intuition:** A defender right at the catch point, sprinting toward it, contributes maximum pressure. A defender drifting toward the edge of the radius contributes nearly nothing.
+**Intuition:** A defender right at the catch point sprinting toward it contributes maximum pressure. A defender drifting near the edge of the radius contributes nearly nothing.
 
-### CRP Labels
+### CRP Tiers
 
 | Score | Label |
 |-------|-------|
@@ -44,16 +48,85 @@ $$\text{CRP} = \sum_{i \in D_R} \left(1 - \frac{d_i}{R}\right) \cdot (1 + v_i)$$
 
 ## Key Findings
 
-| Finding | Stat |
-|---------|------|
-| Completion rate, Open plays | **79.6%** |
-| Completion rate, High Pressure | **45.6%** |
-| Completion rate, Extreme Pressure | **37.5%** |
-| Coverage with highest avg CRP | COVER_1_MAN (0.304) |
-| Route with highest avg CRP | GO route (0.477) |
-| Season max CRP | **2.56** |
+### CRP predicts completion difficulty
 
-Man coverage generates significantly more catch-point pressure than zone. GO routes face the most pressure; HITCH and OUT routes see the least — consistent with how offensive coordinators design quick-game and West Coast systems to attack soft zone.
+![CRP vs Completion Rate](outputs/02_crp_vs_completion.png)
+
+Completion rate falls cleanly with pressure:
+
+| Tier | Completion Rate |
+|------|----------------|
+| Open | **79.6%** |
+| Low Pressure | 65.4% |
+| Moderate Pressure | 51.1% |
+| High Pressure | 45.6% |
+| Extreme Pressure | **37.5%** |
+
+### Most plays are open — contested catches are rare and valuable
+
+![CRP Distribution](outputs/01_crp_distribution.png)
+
+About 57% of all passing plays have no defender within the 3-yard catch radius at arrival. Truly contested catches (CRP > 1.0) make up just 3.7% of plays — and that scarcity is part of why CRP-adjusted ratings reveal what raw catch rate hides.
+
+### Where pressure concentrates
+
+![CRP Field Heatmap](outputs/03_crp_heatmap.png)
+
+Pressure clusters in two zones: the sidelines (boundary throws) and the red zone (compressed coverage). Middle-of-field routes 10–20 yards downfield are the most open.
+
+### Man coverage generates more CRP than zone
+
+![CRP by Coverage](outputs/04_crp_by_coverage.png)
+
+| Coverage | Avg CRP |
+|----------|--------|
+| COVER_1_MAN | 0.30 |
+| COVER_2_MAN | 0.30 |
+| COVER_0_MAN | 0.29 |
+| COVER_6_ZONE | 0.21 |
+| COVER_4_ZONE | 0.21 |
+| COVER_3_ZONE | 0.19 |
+| COVER_2_ZONE | 0.15 |
+
+Man defenders follow receivers to the catch point. Zone defenders cover space and are less likely to converge tightly on the ball.
+
+---
+
+## Receiver Rankings — Catch Rate Over Expected (CROE)
+
+For each receiver, we compare their actual catch rate to the league-wide expected catch rate given their CRP exposure. **CROE** = how much better (or worse) a receiver is than league average against the level of pressure they faced.
+
+### Top performers (min. 30 targets)
+
+![Top Receivers by CROE](outputs/07_top_receivers_croe.png)
+
+The leaderboard is dominated by **running backs and tight ends** targeted in safer zones (low avg CRP, high catch rate). But several wide receivers stand out — **Khalil Shakir** (BUF, +13.8% CROE on 39 targets at 0.20 avg CRP) and **Cole Kmet** (CHI, +12.3% CROE on 76 targets) both face moderate pressure and convert at elite rates.
+
+### Bottom performers
+
+![Bottom Receivers by CROE](outputs/08_bottom_receivers_croe.png)
+
+The trailing end shows receivers who under-converted given their pressure level — useful for separating tough-target volume guys from genuine inefficiency.
+
+### Pressure specialists — who QBs trust in the toughest spots
+
+![Pressure Specialists](outputs/09_pressure_specialists.png)
+
+Receivers ranked by average CRP faced. These are the players quarterbacks throw to in contested situations — useful context for evaluating WR1s and red-zone targets.
+
+---
+
+## Animated Play Examples
+
+### High-pressure completion (CRP = 2.09, slant route, 3 defenders converging)
+
+![High CRP Animation](outputs/10_animated_high_crp_play.gif)
+
+### Wide-open completion for contrast
+
+![Open Play Animation](outputs/11_animated_open_play.gif)
+
+The catch-radius circle fills with color as CRP rises. The contrast between these two plays — same outcome, completely different difficulty — is exactly what CRP is built to capture.
 
 ---
 
@@ -64,24 +137,21 @@ catch-radius-pressure/
 ├── crp/
 │   ├── __init__.py          # Public API
 │   ├── metric.py            # CRP formula & batch computation
-│   ├── data_loader.py       # Data loading utilities
-│   └── visualizations.py   # Field plots, heatmaps, distributions
+│   ├── data_loader.py       # Data utilities
+│   ├── visualizations.py    # Field plots, heatmaps, distributions
+│   ├── rankings.py          # Player rankings & CROE
+│   └── animation.py         # Animated play GIFs
 ├── notebooks/
-│   └── crp_analysis.ipynb  # Full analysis walkthrough
+│   ├── crp_analysis.ipynb        # Full analysis walkthrough
+│   └── crp_analysis_colab.ipynb  # Colab-ready version
 ├── scripts/
-│   └── compute_crp.py      # CLI: regenerate CRP from raw data
+│   └── compute_crp.py       # CLI: regenerate CRP from raw data
 ├── data/
-│   ├── crp_all_weeks.csv   # Pre-computed CRP, all 14,108 plays
-│   ├── crp_merged.csv      # CRP + supplementary play metadata
-│   └── crp_w01.csv … w18   # Per-week CRP files
-├── outputs/
-│   ├── 01_crp_distribution.png
-│   ├── 02_crp_vs_completion.png
-│   ├── 03_crp_heatmap.png
-│   ├── 04_crp_by_coverage.png
-│   ├── 05_example_play_high_crp.png
-│   └── 06_example_play_low_crp.png
-└── requirements.txt
+│   ├── crp_all_weeks.csv    # 14,108 plays, CRP only
+│   ├── crp_merged.csv       # CRP + supplementary metadata
+│   ├── play_targets.csv     # Play → targeted receiver lookup
+│   └── receiver_rankings.csv # Computed rankings
+└── outputs/                 # All charts & animated GIFs
 ```
 
 ---
@@ -91,44 +161,21 @@ catch-radius-pressure/
 ### Option A: Google Colab (zero setup)
 
 1. Open [Google Colab](https://colab.research.google.com)
-2. Upload `catch_radius_pressure_project.zip` to the Colab session
-3. Run in a cell: `!unzip -q catch_radius_pressure_project.zip -d /content/`
-4. Open `notebooks/crp_analysis_colab.ipynb` and run all cells
+2. Upload the project zip and run: `!unzip catch_radius_pressure_project.zip -d /content/`
+3. Open `notebooks/crp_analysis_colab.ipynb` and run all cells
 
-The Colab notebook handles path setup, dependencies, and data location automatically.
+### Option B: Local
 
-### Option B: Local Setup
-
-#### 1. Install dependencies
 ```bash
+git clone https://github.com/Stevenmarathias/catch-radius-pressure.git
+cd catch-radius-pressure
 pip install -r requirements.txt
+jupyter notebook notebooks/crp_analysis.ipynb
 ```
 
-#### 2. Set up data
-
-Place the competition data folder inside `data/`:
-```
-data/114239_nfl_competition_files_published_analytics_final/
-    supplementary_data.csv
-    train/
-        input_2023_w01.csv
-        output_2023_w01.csv
-        ...
-```
-
-Pre-computed CRP files (`crp_all_weeks.csv`, `crp_merged.csv`) are included — you can use these directly without reprocessing.
-
-#### 3. Recompute CRP (optional)
+To recompute CRP from raw competition data:
 ```bash
-python scripts/compute_crp.py
-# or with explicit path:
 python scripts/compute_crp.py --data_dir /path/to/competition/data
-```
-
-#### 4. Run the analysis notebook
-```bash
-cd notebooks
-jupyter notebook crp_analysis.ipynb
 ```
 
 ---
@@ -137,49 +184,41 @@ jupyter notebook crp_analysis.ipynb
 
 ```python
 from crp import compute_crp_for_play, compute_crp_dataset, load_week
+from crp.rankings import compute_player_rankings
+from crp.animation import animate_play
 
 # Single play
 result = compute_crp_for_play(defenders_df, ball_land_x, ball_land_y)
-print(result['crp'])                   # float
-print(result['n_defenders'])           # int
-print(result['defender_contributions']) # list of dicts
 
 # Full week batch
 df_in, df_out = load_week(week=1)
 df_crp = compute_crp_dataset(df_in, df_out)
-# Returns DataFrame: game_id, play_id, crp, n_defenders_in_radius, ...
+
+# Player rankings
+rankings = compute_player_rankings(df_crp_merged, play_targets, min_targets=30)
+
+# Animate a play
+animate_play(df_in, df_out, game_id=2023091010, play_id=3826,
+             output_path="play.gif")
 ```
-
----
-
-## Visualizations
-
-All figures are in `outputs/`. Key charts:
-
-**CRP Distribution** — Right-skewed; ~57% of plays are Open (no defender in radius)
-
-**CRP vs Completion Rate** — Monotonic relationship: higher pressure = lower completion rate
-
-**Field Heatmap** — Pressure concentrates at sidelines and in the red zone
-
-**Coverage Analysis** — Man coverage generates more catch-point pressure than zone
 
 ---
 
 ## Future Work
 
-- **Receiver grades**: Compare each receiver's actual catch rate vs expected given CRP exposure
-- **QB bravery index**: Do quarterbacks throw into contested windows or take the safe option?
-- **Temporal CRP**: Animate how pressure builds frame-by-frame during ball flight
-- **Team-level coverage efficiency**: Which defenses generate the most CRP per play called?
+- **Quarterback bravery index**: do QBs throw into pressure or take the safe option?
+- **Team-level coverage efficiency**: which defenses generate the most CRP per snap?
+- **Temporal CRP decomposition**: separate "tight at release" from "late-closing" pressure
+- **Fantasy / DFS applications**: CRP-adjusted projections for receivers in upcoming matchups
 
 ---
 
 ## Data
 
-Competition data provided by the NFL via the [Big Data Bowl 2026](https://www.kaggle.com/competitions/nfl-big-data-bowl-2026).  
+Provided by the NFL via [Big Data Bowl 2026](https://www.kaggle.com/competitions/nfl-big-data-bowl-2026).  
 2023 NFL season tracking data: Weeks 1–18.
 
 ---
 
-*NFL Big Data Bowl 2026 | Analytics Track*
+*NFL Big Data Bowl 2026 | Analytics Track*  
+*Author: [@Stevenmarathias](https://github.com/Stevenmarathias)*

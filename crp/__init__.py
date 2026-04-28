@@ -16,6 +16,13 @@ from .data_loader import (
     merge_crp_with_supplementary,
     get_play_snapshot,
 )
+from .rankings import (
+    compute_player_rankings,
+    plot_top_receivers,
+    plot_pressure_specialists,
+    load_play_targets,
+)
+from .animation import animate_play
 
 __all__ = [
     "compute_crp_for_play",
@@ -28,4 +35,9 @@ __all__ = [
     "load_supplementary",
     "merge_crp_with_supplementary",
     "get_play_snapshot",
+    "compute_player_rankings",
+    "plot_top_receivers",
+    "plot_pressure_specialists",
+    "load_play_targets",
+    "animate_play",
 ]
