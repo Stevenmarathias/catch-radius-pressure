@@ -167,7 +167,26 @@ def compute_crp_dataset(
     -------
     DataFrame with one row per play:
         game_id, play_id, crp, n_defenders_in_radius,
-        ball_land_x, ball_land_y, num_frames_output
+        ball_land_x, ball_land_y, num_frames_output,
+        min_def_dist_arrival,   nearest defender's distance to ball at arrival
+                                (all coverage defenders, not just those within R)
+        rec_dist_to_ball,       targeted receiver's distance to ball at arrival
+        rec_closing_v           receiver's velocity toward ball at arrival
+                                (yards/frame; last-input-frame speed/dir applied
+                                at the arrival-frame position — same
+                                approximation used for defender velocities)
+        sep_at_throw            targeted receiver's separation from the nearest
+                                defensive coverage player at the throw frame
+                                (yards). Pass-3 View A: high → receiver was
+                                already open at release; low → tight at throw.
+        crp_at_release          CRP recomputed with each defender projected
+                                forward from throw-frame position along their
+                                throw-frame velocity vector for num_frames_output
+                                frames. Measures the pressure "already implied"
+                                at the moment the QB threw.
+                                crp_flight_delta = crp - crp_at_release
+                                (added downstream) captures the pressure
+                                accrued while the ball was in the air.
     """
     records = []
 
@@ -189,47 +208,106 @@ def compute_crp_dataset(
             (df_output["game_id"] == game_id) & (df_output["play_id"] == play_id)
         ]
 
-        # ── Get defensive players ──────────────────────────────────────────
-        def_input = play_df[play_df["player_role"] == "Defensive Coverage"]
+        last_input_frame = play_df["frame_id"].max()
 
-        if play_out.empty:
-            # No output data: use last known input positions as proxy
-            last_input_frame = play_df["frame_id"].max()
-            def_snapshot = (
-                def_input[def_input["frame_id"] == last_input_frame]
-                [["nfl_id", "player_name", "x", "y", "s", "dir"]]
-                .copy()
-            )
-        else:
-            # Use predicted positions at arrival frame from output
-            # Output only tracks player_to_predict; defenders may not be in output
-            # → merge: prefer output position for defenders that ARE tracked,
-            #   fall back to last input frame for others
+        if not play_out.empty:
             out_at_arrival = play_out[play_out["frame_id"] == arrival_frame][
                 ["nfl_id", "x", "y"]
-            ]
+            ].rename(columns={"x": "x_pred", "y": "y_pred"})
+        else:
+            out_at_arrival = pd.DataFrame(columns=["nfl_id", "x_pred", "y_pred"])
 
-            last_input_frame = play_df["frame_id"].max()
-            def_last = (
-                def_input[def_input["frame_id"] == last_input_frame]
+        def _snapshot(role_df: pd.DataFrame) -> pd.DataFrame:
+            """Build (nfl_id, x, y, s, dir) at arrival, output override + fallback."""
+            last = (
+                role_df[role_df["frame_id"] == last_input_frame]
                 [["nfl_id", "player_name", "x", "y", "s", "dir"]]
                 .copy()
             )
+            snap = last.merge(out_at_arrival, on="nfl_id", how="left")
+            snap["x"] = snap["x_pred"].combine_first(snap["x"])
+            snap["y"] = snap["y_pred"].combine_first(snap["y"])
+            return snap[["nfl_id", "player_name", "x", "y", "s", "dir"]]
 
-            # Merge: override x/y from output if available
-            def_snapshot = def_last.merge(
-                out_at_arrival.rename(columns={"x": "x_pred", "y": "y_pred"}),
-                on="nfl_id",
-                how="left",
-            )
-            def_snapshot["x"] = def_snapshot["x_pred"].combine_first(def_snapshot["x"])
-            def_snapshot["y"] = def_snapshot["y_pred"].combine_first(def_snapshot["y"])
-            def_snapshot = def_snapshot[["nfl_id", "player_name", "x", "y", "s", "dir"]]
-
-        # ── Compute CRP ───────────────────────────────────────────────────
+        # ── Defensive coverage snapshot & CRP ─────────────────────────────
+        def_snapshot = _snapshot(play_df[play_df["player_role"] == "Defensive Coverage"])
         result = compute_crp_for_play(
             def_snapshot, ball_x, ball_y, catch_radius=catch_radius
         )
+
+        # ── Nearest defender distance at arrival (no radius cap) ──────────
+        if def_snapshot.empty:
+            min_def_dist = np.nan
+        else:
+            dists = np.sqrt(
+                (def_snapshot["x"] - ball_x) ** 2 + (def_snapshot["y"] - ball_y) ** 2
+            )
+            min_def_dist = float(dists.min())
+
+        # ── Pass-3: throw-frame snapshots for defenders and receiver ──────
+        # No output override — these are strictly last-input-frame positions.
+        def_throw = (
+            play_df[
+                (play_df["player_role"] == "Defensive Coverage")
+                & (play_df["frame_id"] == last_input_frame)
+            ][["nfl_id", "player_name", "x", "y", "s", "dir"]]
+            .copy()
+        )
+        rec_throw = (
+            play_df[
+                (play_df["player_role"] == "Targeted Receiver")
+                & (play_df["frame_id"] == last_input_frame)
+            ][["nfl_id", "player_name", "x", "y", "s", "dir"]]
+            .copy()
+        )
+
+        # sep_at_throw: receiver ↔ nearest defensive coverage player at release
+        if def_throw.empty or rec_throw.empty:
+            sep_at_throw = np.nan
+        else:
+            r = rec_throw.iloc[0]
+            sep_at_throw = float(
+                np.sqrt(
+                    (def_throw["x"] - r["x"]) ** 2 + (def_throw["y"] - r["y"]) ** 2
+                ).min()
+            )
+
+        # crp_at_release: project defenders forward along throw-frame velocity
+        # for n_frames frames, then compute CRP at ball_land using throw-frame
+        # positions/velocities.
+        if def_throw.empty:
+            crp_at_release_val = 0.0
+        else:
+            proj = def_throw.copy()
+            dt_seconds = n_frames / FRAMES_PER_SECOND
+            dir_rad = np.radians(proj["dir"].to_numpy())
+            proj_x = proj["x"].to_numpy() + proj["s"].to_numpy() * np.sin(dir_rad) * dt_seconds
+            proj_y = proj["y"].to_numpy() + proj["s"].to_numpy() * np.cos(dir_rad) * dt_seconds
+            proj["x"] = proj_x
+            proj["y"] = proj_y
+            crp_at_release_val = compute_crp_for_play(
+                proj, ball_x, ball_y, catch_radius=catch_radius
+            )["crp"]
+
+        # ── Targeted receiver snapshot & Pass-2 leverage inputs ───────────
+        rec_snapshot = _snapshot(play_df[play_df["player_role"] == "Targeted Receiver"])
+        if rec_snapshot.empty:
+            rec_dist_to_ball = np.nan
+            rec_closing_v = np.nan
+        else:
+            # If multiple rows (shouldn't happen — one targeted receiver per play),
+            # take the row nearest to the ball as the intended target.
+            dxs = rec_snapshot["x"] - ball_x
+            dys = rec_snapshot["y"] - ball_y
+            rec_dists = np.sqrt(dxs ** 2 + dys ** 2)
+            idx = int(rec_dists.idxmin())
+            row = rec_snapshot.loc[idx]
+            rec_dist_to_ball = float(rec_dists.loc[idx])
+            rec_closing_v = float(
+                _velocity_toward_target(
+                    row["x"], row["y"], row["s"], row["dir"], ball_x, ball_y
+                )
+            )
 
         records.append(
             {
@@ -240,6 +318,11 @@ def compute_crp_dataset(
                 "ball_land_x": ball_x,
                 "ball_land_y": ball_y,
                 "num_frames_output": n_frames,
+                "min_def_dist_arrival": min_def_dist,
+                "rec_dist_to_ball": rec_dist_to_ball,
+                "rec_closing_v": rec_closing_v,
+                "sep_at_throw": sep_at_throw,
+                "crp_at_release": crp_at_release_val,
             }
         )
 

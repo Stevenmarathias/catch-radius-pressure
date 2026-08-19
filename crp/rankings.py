@@ -12,6 +12,8 @@ Key metrics computed per player:
                        similar pressure levels)
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import numpy as np

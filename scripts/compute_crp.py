@@ -15,6 +15,7 @@ import glob
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from crp.data_loader import load_supplementary, merge_crp_with_supplementary
 from crp.metric import compute_crp_dataset, add_crp_labels
 
 
@@ -78,6 +79,14 @@ def main():
     print(f"\n✓ Full season ({len(full):,} plays) → {all_path}")
     print(full["crp"].describe().round(4))
     print(full["crp_label"].value_counts())
+
+    # Merge with supplementary play metadata → crp_merged.csv
+    supp = load_supplementary(data_dir=data_dir)
+    merged = merge_crp_with_supplementary(full, supp)
+    merged_path = os.path.join(output_dir, "crp_merged.csv")
+    merged.to_csv(merged_path, index=False)
+    print(f"\n✓ Merged with supplementary → {merged_path}  "
+          f"({len(merged):,} rows × {len(merged.columns)} cols)")
 
 
 if __name__ == "__main__":
