@@ -1,0 +1,14 @@
+{
+  "dev_oof_raw_logloss": 0.4201913101637625,
+  "dev_oof_raw_brier": 0.13176649787022351,
+  "dev_oof_raw_auc": 0.8381067482588831,
+  "dev_oof_cal_logloss": 0.41604665657244827,
+  "dev_oof_cal_brier": 0.13067796716647853,
+  "dev_oof_cal_auc": 0.8398462176061992,
+  "test_raw_logloss": 0.3903322368109237,
+  "test_raw_brier": 0.1205952964513774,
+  "test_raw_auc": 0.8557271066400596,
+  "test_cal_logloss": 0.3889356302709805,
+  "test_cal_brier": 0.12074203150810543,
+  "test_cal_auc": 0.8550822974593253
+}
