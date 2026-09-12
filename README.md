@@ -3,6 +3,8 @@
 
 > **A new metric measuring defensive pressure at the catch point across 14,108 passing plays from the 2023 NFL season.**
 
+> **Note:** CRP has been substantially revised. See [CRP_V2_METHODOLOGY.md](CRP_V2_METHODOLOGY.md) for the current methodology (v2), which adds receiver context to the formula, standardizes field coordinates, and produces position- and depth-adjusted receiver rankings. The rankings and pressure-specialist sections below reflect v2.
+
 ![High CRP Play Animation](outputs/10_animated_high_crp_play.gif)
 
 *A high-pressure play unfolding: ball in flight, defenders converging, CRP score updating frame-by-frame.*
@@ -70,9 +72,9 @@ About 57% of all passing plays have no defender within the 3-yard catch radius a
 
 ### Where pressure concentrates
 
-![CRP Field Heatmap](outputs/03_crp_heatmap.png)
+![CRP Field Heatmap (standardized)](outputs/v2_05_field_heatmap_standardized.png)
 
-Pressure clusters in two zones: the sidelines (boundary throws) and the red zone (compressed coverage). Middle-of-field routes 10–20 yards downfield are the most open.
+With v2's standardized field coordinates (offense always attacks left→right), the **red zone stands out as the highest-pressure area of the field: 0.158 avg CRP vs 0.039 in a team's own territory — roughly a 2× effect** that was previously washed out by mixing play directions. Sidelines remain contested; middle-of-field routes 10–20 yards downfield are still the most open.
 
 ### Man coverage generates more CRP than zone
 
@@ -94,25 +96,34 @@ Man defenders follow receivers to the catch point. Zone defenders cover space an
 
 ## Receiver Rankings — Catch Rate Over Expected (CROE)
 
-For each receiver, we compare their actual catch rate to the league-wide expected catch rate given their CRP exposure. **CROE** = how much better (or worse) a receiver is than league average against the level of pressure they faced.
+For each receiver, we compare their actual catch rate to the expected catch rate given both their CRP v2 exposure **and their average air yards (depth of target)**. Rankings are computed **within position groups** (WR / TE / RB), so a flat-route RB no longer competes against a downfield WR on the same leaderboard. This fixes v1's biggest issue — where role artifacts dominated the top of the list.
 
-### Top performers (min. 30 targets)
+### Top WRs
 
-![Top Receivers by CROE](outputs/07_top_receivers_croe.png)
+![Top WRs by adjusted CROE](outputs/v2_01_top_wrs.png)
 
-The leaderboard is dominated by **running backs and tight ends** targeted in safer zones (low avg CRP, high catch rate). But several wide receivers stand out — **Khalil Shakir** (BUF, +13.8% CROE on 39 targets at 0.20 avg CRP) and **Cole Kmet** (CHI, +12.3% CROE on 76 targets) both face moderate pressure and convert at elite rates.
+With depth- and position-adjusted expectations, the WR leaderboard is now full of actual elite receivers. **Khalil Shakir, Nico Collins, DeVonta Smith, DJ Moore, and CeeDee Lamb** all convert well above expectation on downfield volume (avg air yards ~17–21). This is the group the v1 metric was under-crediting because their expected catch rate was being computed against the whole league — including short-route specialists.
 
-### Bottom performers
+### Top TEs
 
-![Bottom Receivers by CROE](outputs/08_bottom_receivers_croe.png)
+![Top TEs by adjusted CROE](outputs/v2_02_top_tes.png)
 
-The trailing end shows receivers who under-converted given their pressure level — useful for separating tough-target volume guys from genuine inefficiency.
+**Cole Kmet leads the tight ends** — a top target on high-volume looks, converting at an elite rate for his depth profile.
 
-### Pressure specialists — who QBs trust in the toughest spots
+### Top RBs
 
-![Pressure Specialists](outputs/09_pressure_specialists.png)
+![Top RBs by adjusted CROE](outputs/v2_03_top_rbs.png)
 
-Receivers ranked by average CRP faced. These are the players quarterbacks throw to in contested situations — useful context for evaluating WR1s and red-zone targets.
+**Samaje Perine leads the RBs.** He was near the top of the v1 all-position leaderboard, which was misleading — RBs catch mostly low-difficulty targets. In v2 he's ranked as an elite *pass-catching RB* against other RBs, which is the honest read.
+
+### Pressure specialists — trusted vs. struggling
+
+![Pressure Specialist Decomposition](outputs/v2_04_pressure_specialist_decomposition.png)
+
+A single "avg CRP faced" ranking is ambiguous: a high number could mean *the QB trusts them in contested spots* **or** *they can't get open, so every throw to them looks contested*. v2 splits the top 30% by CRP faced into two categories based on whether the receiver produces above expectation:
+
+- **Trusted under pressure** (high CRP faced, positive CROE): **Michael Thomas, DeVonta Smith, Jaylen Waddle, Puka Nacua, Jakobi Meyers** — QBs go to them in tight windows and they deliver.
+- **Struggling separators** (high CRP faced, negative CROE): **Michael Gallup, Alec Pierce, Trey Palmer, Marquise Brown, Quentin Johnston** — their high CRP comes from an inability to create separation, not from being schemed into contested spots.
 
 ---
 
